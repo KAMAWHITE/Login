@@ -1,13 +1,12 @@
-import React from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
-import Login from './Pages/Login'
+import React from 'react';
+import { Outlet } from 'react-router-dom';
 
 function App() {
   return (
     <div>
-      <Login />
+      <Outlet />
     </div>
-  )
+  );
 }
 
-export default App
+export default App;
