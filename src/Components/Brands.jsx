@@ -7,47 +7,68 @@ function Brands() {
   const [loading, setLoading] = useState(false);
   const [title, setTitle] = useState('');
   const [images, setImages] = useState(null);
-  const imageUrl = 'https://realauto.limsa.uz/api/uploads/images';
   const [openModal, setOpenModal] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState(null);
+  const [deleteModal, setDeleteModal] = useState(false);
+  const imageUrl = 'https://realauto.limsa.uz/api/uploads/images';
   const token = localStorage.getItem('accessToken');
 
-  const handleOpenModal = () => {
-    setOpenModal(!openModal);
+  const handleOpenModal = (brand = null) => {
+    setOpenModal(true);
+    if (brand) {
+      setSelectedBrand(brand);
+      setTitle(brand.title);
+    } else {
+      setSelectedBrand(null);
+      setTitle('');
+      setImages(null);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setOpenModal(false);
+    setSelectedBrand(null);
+    setTitle('');
+    setImages(null);
   };
 
   const getBrands = () => {
     setLoading(true);
+    axios.get('https://realauto.limsa.uz/api/brands')
+      .then((res) => setBrands(res.data.data))
+      .finally(() => setLoading(false));
+  };
+
+  const saveBrand = (e) => {
+    e.preventDefault();
+    const formData = new FormData();
+    formData.append('title', title);
+    if (images) formData.append('images', images);
+
     axios({
-      url: 'https://realauto.limsa.uz/api/brands',
-      method: 'GET',
-    }).then((res) => {
-      setBrands(res.data.data);
-    }).finally(() => {
-      setLoading(false);
+      url: selectedBrand ? `https://realauto.limsa.uz/api/brands/${selectedBrand.id}` : 'https://realauto.limsa.uz/api/brands',
+      method: selectedBrand ? 'PUT' : 'POST',
+      data: formData,
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(() => {
+      toast.success(selectedBrand ? 'Brand Updated' : 'Brand Added');
+      getBrands();
+      handleCloseModal();
+    }).catch(() => {
+      toast.error('Brand could not be saved');
     });
   };
 
-  const addBrand = (e) => {
-    e.preventDefault();
-    const formdata = new FormData();
-    formdata.append('title', title);
-    if (images) {
-      formdata.append('images', images);
-    }
-
-    axios({
-      url: 'https://realauto.limsa.uz/api/brands',
-      method: 'POST',
-      data: formdata,
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    }).then((res) => {
-      toast.success('Brand Added');
+  const handleDeleteBrand = () => {
+    axios.delete(`https://realauto.limsa.uz/api/brands/${selectedBrand.id}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    }).then(() => {
+      toast.success('Brand Deleted');
       getBrands();
-      setOpenModal(false);
-    }).catch((err) => {
-      toast.error('Brand could not be added');
+      setDeleteModal(false);
+      setSelectedBrand(null);
+    }).catch(() => {
+      toast.error('Brand could not be deleted');
     });
   };
 
@@ -57,62 +78,46 @@ function Brands() {
 
   return (
     <>
-      <button className="text-[20px] font-bold bg-[#01002b] text-white px-5 py-3 rounded-[15px] mt-2" onClick={handleOpenModal}>
-        Add brand
-      </button>
+      <button className="bg-blue-600 text-white px-4 py-2 mt-2 rounded" onClick={() => handleOpenModal()}>Add Brand</button>
 
       {openModal && (
-        <form
-          className="bg-white shadow-md w-[364px] rounded px-8 pt-6 pb-8 mb-4"
-          onSubmit={addBrand}
-        >
-          <div className="mb-2">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">
-              Title
-            </label>
-            <input
-              className="shadow appearance-none border rounded w-[300px] py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-          </div>
-          <div className="mb-6">
-            <label className="block text-gray-700 text-sm font-bold mb-2" htmlFor="username">
-              Image
-            </label>
-            <input
-              className="shadow appearance-none border rounded w-[300px] py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"
-              type="file"
-              onChange={(e) => setImages(e.target.files[0])}
-            />
-          </div>
-          <div className="flex items-center justify-between">
-            <button
-              className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-              type="submit"
-            >
-              Add
-            </button>
-          </div>
-        </form>
+        <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50">
+          <form className="bg-white p-6 rounded shadow-lg w-96" onSubmit={saveBrand}>
+            <h2 className="text-xl font-bold mb-4">{selectedBrand ? 'Edit Brand' : 'Add Brand'}</h2>
+            <input className="w-full mb-2 p-2 border rounded" type="text" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Brand Title" />
+            <input className="w-full mb-2 p-2 border rounded" type="file" onChange={(e) => setImages(e.target.files[0])} />
+            <div className="flex justify-between">
+              <button className="bg-green-500 text-white px-4 py-2 rounded" type="submit">Save</button>
+              <button className="bg-gray-500 text-white px-4 py-2 rounded" onClick={handleCloseModal}>Cancel</button>
+            </div>
+          </form>
+        </div>
       )}
 
-      <div className="grid grid-cols-3 pt-5 gap-5">
+      {deleteModal && (
+        <div className="fixed inset-0 flex justify-center items-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded shadow-lg w-80">
+            <h2 className="text-xl font-bold mb-4">Are you sure?</h2>
+            <div className="flex justify-between">
+              <button className="bg-red-500 text-white px-4 py-2 rounded" onClick={handleDeleteBrand}>Yes</button>
+              <button className="bg-gray-500 text-white px-4 py-2 rounded" onClick={() => setDeleteModal(false)}>No</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="grid grid-cols-3 gap-4 mt-4">
         {loading ? (
-          <div className="m-auto text-[30px] font-bold">Loading...</div>
+          <p className="col-span-3 text-center">Loading...</p>
         ) : (
           brands.map((brand) => (
-            <div className="grid grid-cols-1 gap-5 p-5 bg-[#939396] rounded-[20px]" key={brand.id}>
+            <div key={brand.id} className="p-4 bg-gray-200 rounded-lg shadow-lg">
+              <h3 className="text-lg font-semibold">{brand.title}</h3>
+              <img className="w-full h-40 object-cover my-2" src={`${imageUrl}/${brand.image_src}`} alt={brand.title} />
               <div className="flex justify-between">
-                <h1 className="text-white text-[24px]">Name:</h1>
-                <p className="text-white text-[24px]">{brand.title}</p>
+                <button className="bg-yellow-500 text-white px-4 py-1 rounded" onClick={() => handleOpenModal(brand)}>Edit</button>
+                <button className="bg-red-500 text-white px-4 py-1 rounded" onClick={() => { setSelectedBrand(brand); setDeleteModal(true); }}>Delete</button>
               </div>
-              <img
-                className="w-[450px] h-[200px]"
-                src={`${imageUrl}/${brand.image_src}`}
-                alt={brand.title}
-              />
             </div>
           ))
         )}
